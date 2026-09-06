@@ -46,6 +46,7 @@ export function useNfcReader({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- capability detection runs once after hydration.
     setIsSupported(typeof window !== 'undefined' && 'NDEFReader' in window);
   }, []);
 

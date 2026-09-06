@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { toggleGoogleWalletAction } from '@/lib/actions/settings';
+import { setGoogleWalletDesignAction, toggleGoogleWalletAction } from '@/lib/actions/settings';
 
 const mockFrom = vi.fn();
 const mockAdminClient = { from: mockFrom };
@@ -60,5 +60,22 @@ describe('toggleGoogleWalletAction', () => {
     if (!res.success) {
       expect(res.error).toMatch(/unauthorized/i);
     }
+  });
+
+  it('lets an admin select the organization-wide Wallet design', async () => {
+    mockFrom.mockReturnValue({
+      update: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ error: null }),
+      }),
+    });
+
+    const res = await setGoogleWalletDesignAction('legacy');
+    expect(res.success).toBe(true);
+  });
+
+  it('rejects an invalid Wallet design', async () => {
+    const res = await setGoogleWalletDesignAction('broken' as never);
+    expect(res.success).toBe(false);
+    if (!res.success) expect(res.error).toMatch(/invalid/i);
   });
 });

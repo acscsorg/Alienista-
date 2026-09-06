@@ -25,6 +25,8 @@ describe('BadgeCard UI', () => {
     const html = renderToString(element);
     expect(html).toContain('Add to Google Wallet');
     expect(html).toContain('href="https://pay.google.com/gp/v/save/test-jwt"');
+    expect(html).toContain('<svg');
+    expect(html).not.toContain('data:image/png');
   });
 
   it('does not render Google Wallet button when walletSaveUrl is null and showWalletButton is false', () => {

@@ -8,7 +8,8 @@ import { revalidatePath } from 'next/cache';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-function correctionInputError(input: AttendanceCorrectionInput): string | null {
+function correctionInputError(input: AttendanceCorrectionInput | undefined): string | null {
+  if (!input) return 'Attendance correction input is required.';
   if (!UUID_PATTERN.test(input.record_id) || (input.slot_id !== null && !UUID_PATTERN.test(input.slot_id))) {
     return 'Invalid attendance record or slot identifier.';
   }
@@ -114,7 +115,7 @@ export async function updateAttendanceRecordAction(
 export async function deleteAttendanceRecordAction(input: {
   record_id: string;
   reason: string;
-}): Promise<ActionResponse> {
+} | undefined): Promise<ActionResponse> {
   let user;
   try {
     user = await requireRole('admin');
@@ -122,6 +123,7 @@ export async function deleteAttendanceRecordAction(input: {
     return { success: false, error: 'Only admins can delete attendance records.' };
   }
 
+  if (!input) return { success: false, error: 'Attendance deletion input is required.' };
   if (!UUID_PATTERN.test(input.record_id)) return { success: false, error: 'Invalid attendance record identifier.' };
   if (!input.reason.trim()) return { success: false, error: 'A correction reason is required.' };
 

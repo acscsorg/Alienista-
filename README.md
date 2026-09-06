@@ -35,6 +35,9 @@
 - ⚡ **Offline-First Scanner**: Real-time camera QR scanning with client-side deduplication, instant optimistic writes to IndexedDB, and automatic background sync when reconnected.
 - 🖼️ **Student Face Verification & Offline Caching**: Automatic pre-caching of student photos in the browser Cache Storage API for 0ms visual verification during check-in.
 - 🪪 **Digital Student Badges & QR Generator**: Option A ID badge layout with student photo, academic info, and high-resolution downloadable QR passes with UID.
+- 🎨 **Canonical Badge Artwork**: The website renders the real Alienista SVG badge layout; the downloaded PNG is rasterized from that same artwork.
+- 💳 **Google Wallet Passes**: Optional branded `Alienista` passes with refreshable student information and QR attendance compatibility.
+- 🧪 **Reversible Wallet Design Test**: Admins can enable the Pass Builder-style Wallet layout organization-wide and revert to the legacy payload from System Settings.
 - 🕒 **Time-Slotted Events**: Configurable attendance windows (e.g., Morning In/Out, Afternoon In/Out) with live countdown timers.
 - 🔐 **Role-Based Portals**:
   - **Admin**: Full control over student rosters, bulk CSV import/export, term advancement, and organization settings.
@@ -120,6 +123,11 @@ SESSION_SECRET=replace_with_a_32_byte_random_hex_string
 # App Site URL
 # -----------------------------------------------------------------------------
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+# Optional: stable public HTTPS Alienista logo for Google Wallet.
+# If omitted, the student's public Supabase avatar is used as the small logo.
+GOOGLE_WALLET_LOGO_URL=https://your-public-domain.example/icon-512.png
+GOOGLE_WALLET_HERO_URL=https://your-public-domain.example/wallet-hero.png
 ```
 
 > 💡 **Tip to generate `SESSION_SECRET`:**
@@ -255,6 +263,8 @@ Alienista-/
    - If an officer loses internet connection during an event, scans are **instantly written to the device's IndexedDB** (`pending_scans`).
    - Student faces and details will continue to load instantly thanks to the **Cache Storage API pre-caching**.
    - When connection returns, the sync banner will show `Sync X Offline Scans` and automatically flush queued records to Supabase.
+
+Alienista currently runs production attendance through QR only. The Web NFC/NDEF reader hook is retained as commented future preparation, but it is not mounted in the scanner. Phone-to-phone NFC/HCE will require a native Android implementation and is intentionally outside the web/PWA scanner. Google Wallet design selection is organization-wide and admin-only; use **Revert** in System Settings if the Pass Builder experiment causes a provisioning issue.
 
 ---
 

@@ -4,7 +4,7 @@ import { createAdminClient, getEffectiveOrgId } from '@/lib/supabase/admin';
 import { getSessionUser } from '@/lib/session';
 import { ActionResponse } from '@/lib/types/actions';
 import { Student } from '@/lib/types/models';
-import { generateGoogleWalletSaveUrl } from '@/lib/badges/google-wallet';
+import { generateGoogleWalletSaveUrl, syncGoogleWalletObject } from '@/lib/badges/google-wallet';
 
 export async function getStudentGoogleWalletUrlAction(studentId?: string): Promise<ActionResponse<{ url: string }>> {
   const user = await getSessionUser();
@@ -20,7 +20,7 @@ export async function getStudentGoogleWalletUrlAction(studentId?: string): Promi
 
   const { data: settings } = await admin
     .from('organization_settings')
-    .select('google_wallet_enabled')
+    .select('google_wallet_enabled, google_wallet_design')
     .eq('organization_id', orgId)
     .maybeSingle();
 
@@ -39,8 +39,15 @@ export async function getStudentGoogleWalletUrlAction(studentId?: string): Promi
 
   if (error || !student) return { success: false, error: 'Student record not found.' };
 
-  const url = generateGoogleWalletSaveUrl(student as Student);
+  const typedStudent = student as Student;
+  const design = settings?.google_wallet_design === 'legacy' ? 'legacy' : 'builder';
+  const sync = await syncGoogleWalletObject(typedStudent, design);
+  const url = generateGoogleWalletSaveUrl(typedStudent, design);
   if (!url) return { success: false, error: 'Google Wallet server credentials not configured.' };
 
-  return { success: true, data: { url } };
+  return {
+    success: true,
+    data: { url },
+    message: sync.status === 'failed' ? 'Wallet save link generated; existing pass refresh is temporarily unavailable.' : undefined,
+  };
 }

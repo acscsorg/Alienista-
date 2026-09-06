@@ -1,7 +1,7 @@
 # Feasibility Study: Google Wallet Student Badge Integration
 
 > [!NOTE]
-> **Summary & Verdict:** Integrating Google Wallet passes into Alienista is **100% technically feasible** with **zero database migrations** and **no breaking changes** to existing attendance, scanning, or badge generation flows.
+> **Summary & Verdict:** Integrating Google Wallet passes into Alienista is **100% technically feasible** with one organization-settings migration and **no breaking changes** to existing attendance, scanning, or badge generation flows.
 
 ---
 
@@ -39,7 +39,7 @@ flowchart TD
 
 ---
 
-## 2. Why Zero SQL Migrations Are Needed
+## 2. Why the Wallet Object Is Stateless
 
 ### A. Deterministic Object IDs (No Database Tracking Column)
 Google Wallet identifies pass instances using:
@@ -77,7 +77,21 @@ https://pay.google.com/gp/v/save/{signed-jwt}
   * `GOOGLE_WALLET_CLASS_ID`
   * `GOOGLE_WALLET_CLIENT_EMAIL`
   * `GOOGLE_WALLET_PRIVATE_KEY`
-* Supabase PostgreSQL schema remains 100% untouched.
+  * `GOOGLE_WALLET_APP_URL` (recommended): public HTTPS origin included in the Save JWT; do not use `localhost` for deployed provisioning.
+  * Supabase PostgreSQL stores the organization-level design choice in `google_wallet_design`; the pass object itself remains stateless and uses the deterministic student ID.
+
+### Google Generic Pass Builder references
+
+The implementation follows Google's Generic Pass Builder and REST schema:
+
+* [Generic Pass Builder](https://developers.google.com/wallet/generic/resources/pass-builder) - field-by-field pass composition and preview.
+* [Generic pass overview](https://developers.google.com/wallet/generic) - JWT issuance and lifecycle.
+* [GenericObject REST schema](https://developers.google.com/wallet/reference/rest/v1/genericobject) - supported fields such as `cardTitle`, `header`, `subheader`, `logo`, `barcode`, `textModulesData`, and `heroImage`.
+* [GenericObject PATCH method](https://developers.google.com/wallet/reference/rest/v1/genericobject/patch) - updates an existing object with patch semantics.
+
+The Alienista payload mirrors the reference layout: `cardTitle` is `Alienista`, `header` is the student's name, `subheader` is `Student Member`, the green background is the Alienista brand color, the QR barcode remains `student.uid`, and program/ID/section/status are text modules. Because PATCH preserves omitted fields, the payload sends `imageModulesData: []` to remove an older photo module when switching designs.
+
+Wallet-hosted images must be reachable over public HTTPS. Set `GOOGLE_WALLET_LOGO_URL` to a stable public Alienista logo for the production card; until then the student's versioned Supabase avatar is used as the small logo so PFP changes invalidate the image URL. Set `GOOGLE_WALLET_HERO_URL` to a stable public HTTPS Alienista banner; invalid or local URLs are ignored rather than sent to Google.
 
 ---
 
@@ -88,7 +102,9 @@ https://pay.google.com/gp/v/save/{signed-jwt}
 > The QR code rendered on the Google Wallet pass encodes the exact same payload as the canvas badge: `student.uid`.
 > When an officer points the scanner camera at a student's Google Wallet pass, `recordScanAction()` decodes `student.uid` identically.
 
-* **Canvas & PNG Download:** `app/src/lib/badges/render-badge.ts` and `app/src/components/badges/badge-card.tsx` remain unchanged.
+* **Badge artwork:** `app/src/lib/badges/artwork.ts` is the canonical SVG source used by both the on-page badge and PNG export.
+* **Wallet refresh:** Existing generic objects can be patched through the Google Wallet REST API; profile and avatar updates trigger a best-effort patch using the deterministic object ID. The student badge page refreshes the object before opening a newly issued Save URL, so an already-saved test pass must be opened from that button once after deployment.
+* **Wallet design experiment:** `organization_settings.google_wallet_design` is admin-controlled and organization-wide. `builder` is the default Pass Builder-style payload; `legacy` is the one-click rollback variant exposed in System Settings.
 * **Attendance Scanner:** `app/src/app/(dashboard)/scanner/scanner-view.tsx` and `app/src/lib/actions/attendance.ts` require 0 changes.
 * **Offline Attendance & Sync:** Google Wallet stores passes locally on Android, WearOS, and iOS devices. If a student is offline, their Google Wallet pass still displays the QR code. If the officer is offline, Alienista's IndexedDB engine queues the scan as normal.
 * **Admin Tools:** `app/src/app/(dashboard)/qr-generator/page.tsx` continues to function for batch generation and physical badges.
@@ -132,16 +148,22 @@ export function generateGoogleWalletSaveUrl(student: Student): string {
         {
           id: `${issuerId}.${student.id}`,
           classId: `${issuerId}.${classId}`,
-          cardTitle: { defaultValue: { language: 'en-US', value: 'Alienista Student Badge' } },
+          cardTitle: { defaultValue: { language: 'en-US', value: 'Alienista' } },
           header: { defaultValue: { language: 'en-US', value: student.full_name } },
-          subheader: { defaultValue: { language: 'en-US', value: `${student.course} - ${student.year}` } },
-          hexBackgroundColor: '#1B4332',
+          subheader: { defaultValue: { language: 'en-US', value: 'Student Member' } },
+          hexBackgroundColor: '#2D6A4F',
+          heroImage: {
+            sourceUri: { uri: process.env.GOOGLE_WALLET_HERO_URL! },
+            contentDescription: { defaultValue: { language: 'en-US', value: 'Alienista student membership banner' } },
+          },
+          imageModulesData: [],
           barcode: {
             type: 'QR_CODE',
             value: student.uid,
             alternateText: student.uid,
           },
           textModulesData: [
+            { id: 'program', header: 'PROGRAM', body: `${student.course} - ${student.year}` },
             { id: 'student_number', header: 'STUDENT NO.', body: student.student_number },
             { id: 'section', header: 'SECTION', body: student.section },
             { id: 'status', header: 'STATUS', body: student.status },
@@ -218,7 +240,7 @@ flowchart LR
      | Form Field | Exact Value to Enter | Notes / Rationale |
      | :--- | :--- | :--- |
      | **Class ID** | `student_badge_dev` | Console prefixes with `3388000000023183187.` |
-     | **Card Title** | `Alienista Student Badge` | Displayed at top of card in Wallet |
+     | **Card Title** | `Alienista` | Displayed at top of card in Wallet |
      | **Issuer Name** | `Alienista` | Organization brand name |
      | **Hex Background Color** | `#1B4332` | Matches `BADGE_SPEC.colors.brand` |
      | **Logo Image** | Upload logo (square, min 660x660) | Or link to public Supabase bucket |

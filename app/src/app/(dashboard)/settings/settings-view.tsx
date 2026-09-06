@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useTransition } from 'react';
-import { Officer, OrganizationSettings, SanctionPolicy } from '@/lib/types/models';
+import { GoogleWalletDesign, Officer, OrganizationSettings, SanctionPolicy } from '@/lib/types/models';
 import {
   addOfficerAction,
   resetOfficerPinAction,
@@ -9,6 +9,7 @@ import {
   advanceSemesterAction,
   updateAdminCredentialsAction,
   toggleGoogleWalletAction,
+  setGoogleWalletDesignAction,
 } from '@/lib/actions/settings';
 import { Settings, Shield, UserCheck, Plus, Trash2, KeyRound, ArrowRight, Save, AlertTriangle, Wallet } from 'lucide-react';
 import { SanctionsPolicyEditor } from './sanctions-policy-editor';
@@ -43,6 +44,7 @@ export function SettingsView({
   const [newAdminPassword, setNewAdminPassword] = useState('');
 
   const [googleWalletEnabled, setGoogleWalletEnabled] = useState(Boolean(initialSettings.google_wallet_enabled));
+  const [googleWalletDesign, setGoogleWalletDesign] = useState<GoogleWalletDesign>(initialSettings.google_wallet_design === 'legacy' ? 'legacy' : 'builder');
 
   const showToast = (msg: string, type: 'ok' | 'err' = 'ok') => {
     setToast({ msg, type });
@@ -59,6 +61,20 @@ export function SettingsView({
         showToast(res.error, 'err');
       } else {
         showToast(res.message || `Google Wallet passes ${next ? 'enabled' : 'disabled'}.`);
+      }
+    });
+  };
+
+  const handleWalletDesign = (design: GoogleWalletDesign) => {
+    startTransition(async () => {
+      const previous = googleWalletDesign;
+      setGoogleWalletDesign(design);
+      const res = await setGoogleWalletDesignAction(design);
+      if (!res.success) {
+        setGoogleWalletDesign(previous);
+        showToast(res.error, 'err');
+      } else {
+        showToast(res.message || 'Google Wallet design updated.');
       }
     });
   };
@@ -302,6 +318,17 @@ export function SettingsView({
             <li>When enabled, students will see a &quot;Save to Google Wallet&quot; button on their badge page.</li>
             <li>Passes display student details and a scannable QR code compatible with officer attendance cameras.</li>
           </ul>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#E5EBE5] pt-4">
+          <div>
+            <p className="font-semibold text-slate-800">Wallet design experiment</p>
+            <p className="text-[11px] text-slate-500">Organization-wide and reversible. New saves and refreshes use this choice.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => handleWalletDesign('builder')} disabled={isPending || googleWalletDesign === 'builder'} className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${googleWalletDesign === 'builder' ? 'bg-[#2D6A4F] text-white border-[#2D6A4F]' : 'bg-white text-slate-600 border-[#E5EBE5]'}`}>Pass Builder</button>
+            <button type="button" onClick={() => handleWalletDesign('legacy')} disabled={isPending || googleWalletDesign === 'legacy'} className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${googleWalletDesign === 'legacy' ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-600 border-[#E5EBE5]'}`}>Revert</button>
+          </div>
         </div>
       </div>
 

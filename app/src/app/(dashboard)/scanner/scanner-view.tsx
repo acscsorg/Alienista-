@@ -21,9 +21,7 @@ import {
   RefreshCw,
   Wifi,
   WifiOff,
-  Radio,
 } from 'lucide-react';
-import { useNfcReader } from '@/hooks/use-nfc-reader';
 
 interface ScannerViewProps {
   events: Event[];
@@ -251,20 +249,8 @@ export function ScannerView({ events, students, userRole, officerName, officerId
       playBeep('ok');
   };
 
-  const handleNfcScan = (scannedUid: string) => {
-    handleProcessScan(scannedUid);
-  };
-
-  const { isSupported: nfcSupported, isListening: nfcListening, startScan: startNfc } = useNfcReader({
-    onScan: handleNfcScan,
-    enabled: Boolean(selectedEventId),
-  });
-
-  useEffect(() => {
-    if (nfcSupported && !nfcListening && selectedEventId) {
-      startNfc().catch(() => {});
-    }
-  }, [nfcSupported, nfcListening, selectedEventId, startNfc]);
+  // NFC/NDEF integration is intentionally disabled until the native HCE path is selected.
+  // The Web NFC hook remains available as future preparation; QR is the only active input.
 
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -306,12 +292,6 @@ export function ScannerView({ events, students, userRole, officerName, officerId
             {isOnline ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
             <span>{isOnline ? 'Online' : 'Offline'} · {pendingCount} pending</span>
           </div>
-          {nfcSupported && (
-            <div className={`flex items-center gap-1 font-semibold text-[10px] ${nfcListening ? 'text-[#2D6A4F]' : 'text-slate-400'}`}>
-              <Radio className={`w-3 h-3 ${nfcListening ? 'animate-pulse text-[#2D6A4F]' : ''}`} />
-              <span>{nfcListening ? 'NFC Tap Ready' : 'NFC Inactive'}</span>
-            </div>
-          )}
           {isSyncing && (
             <span className="text-slate-500">Syncing {syncProgress.completed} of {syncProgress.total}</span>
           )}

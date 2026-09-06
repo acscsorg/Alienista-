@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import { createAdminClient, getEffectiveOrgId } from '@/lib/supabase/admin';
 import { getSessionUser } from '@/lib/session';
 import { ActionResponse, SanctionPolicyVersionInput } from '@/lib/types/actions';
-import { Officer, OrganizationSettings, SanctionPolicy } from '@/lib/types/models';
+import { GoogleWalletDesign, Officer, OrganizationSettings, SanctionPolicy } from '@/lib/types/models';
 import { revalidatePath } from 'next/cache';
 import { withServerTiming } from '@/lib/server-timing';
 
@@ -22,7 +22,7 @@ export async function getSettingsDataAction(): Promise<
   const admin = createAdminClient();
 
   const [{ data: settings }, { data: officers }, { data: activePolicy }] = await withServerTiming('settings', () => Promise.all([
-    admin.from('organization_settings').select('id, organization_id, academic_year, semester, admin_username, sanctions_enabled, google_wallet_enabled, updated_at').eq('organization_id', orgId).maybeSingle(),
+    admin.from('organization_settings').select('id, organization_id, academic_year, semester, admin_username, sanctions_enabled, google_wallet_enabled, google_wallet_design, updated_at').eq('organization_id', orgId).maybeSingle(),
     admin.from('officers').select('id, organization_id, name, status, created_at, updated_at').eq('organization_id', orgId).order('name', { ascending: true }),
     admin.from('sanction_policies').select('*, sanction_tiers(*)').eq('organization_id', orgId).eq('is_active', true).order('version', { ascending: false }).limit(1).maybeSingle(),
   ]));
@@ -38,6 +38,7 @@ export async function getSettingsDataAction(): Promise<
         admin_username: 'admin',
         sanctions_enabled: false,
         google_wallet_enabled: false,
+        google_wallet_design: 'builder',
         updated_at: new Date().toISOString(),
       },
       officers: (officers as Officer[]) || [],
@@ -48,7 +49,8 @@ export async function getSettingsDataAction(): Promise<
   };
 }
 
-function policyInputError(input: SanctionPolicyVersionInput): string | null {
+function policyInputError(input: SanctionPolicyVersionInput | undefined): string | null {
+  if (!input) return 'Sanction policy input is required.';
   if (!input.name.trim()) return 'Policy name is required.';
   if (input.mode !== 'weighted_missed_points' && input.mode !== 'attendance_percentage') return 'Select a valid policy mode.';
   if (input.tiers.length === 0) return 'Add at least one valid sanction tier.';
@@ -96,6 +98,7 @@ export async function createSanctionPolicyVersionAction(
 export async function toggleSanctionsAction(enabled: boolean): Promise<ActionResponse> {
   const user = await getSessionUser();
   if (!user || user.role !== 'admin') return { success: false, error: 'Only admins can enable or disable sanctions.' };
+  if (typeof enabled !== 'boolean') return { success: false, error: 'Sanctions toggle must be a boolean.' };
   const orgId = await getEffectiveOrgId(user.organization_id);
   const admin = createAdminClient();
   const { error } = await admin.rpc('set_sanctions_enabled', {
@@ -311,4 +314,26 @@ export async function toggleGoogleWalletAction(enabled: boolean): Promise<Action
   revalidatePath('/settings');
   revalidatePath('/my-qr');
   return { success: true, data: undefined, message: `Google Wallet passes ${enabled ? 'enabled' : 'disabled'}.` };
+}
+
+export async function setGoogleWalletDesignAction(design: GoogleWalletDesign): Promise<ActionResponse> {
+  const user = await getSessionUser();
+  if (!user || user.role !== 'admin') return { success: false, error: 'Unauthorized.' };
+  if (design !== 'builder' && design !== 'legacy') return { success: false, error: 'Invalid Google Wallet design.' };
+
+  const orgId = await getEffectiveOrgId(user.organization_id);
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from('organization_settings')
+    .update({ google_wallet_design: design, updated_at: new Date().toISOString() })
+    .eq('organization_id', orgId);
+
+  if (error) return { success: false, error: error.message };
+  revalidatePath('/settings');
+  revalidatePath('/my-qr');
+  return {
+    success: true,
+    data: undefined,
+    message: design === 'builder' ? 'Pass Builder design enabled for this organization.' : 'Legacy Wallet design restored for this organization.',
+  };
 }

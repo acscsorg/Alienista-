@@ -7,7 +7,9 @@ export function normalizePageRequest(
   const page = Number.isInteger(input?.page) && Number(input?.page) > 0 ? Number(input?.page) : 1;
   const requestedPageSize = Number.isInteger(input?.pageSize) ? Number(input?.pageSize) : defaultPageSize;
   const pageSize = Math.min(100, Math.max(1, requestedPageSize));
-  const query = input?.query?.trim().replace(/[%,()_]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const query = typeof input?.query === 'string'
+    ? input.query.trim().replace(/[%,()_]+/g, ' ').replace(/\s+/g, ' ').trim()
+    : undefined;
 
   return {
     page,

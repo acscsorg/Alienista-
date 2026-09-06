@@ -3,7 +3,6 @@ import { getSessionUser } from '@/lib/session';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { BadgeCard } from '@/components/badges/badge-card';
 import { Student } from '@/lib/types/models';
-import { generateGoogleWalletSaveUrl } from '@/lib/badges/google-wallet';
 import { redirect } from 'next/navigation';
 
 export default async function MyQrPage() {
@@ -36,8 +35,6 @@ export default async function MyQrPage() {
     process.env.NEXT_PUBLIC_ENABLE_GOOGLE_WALLET !== 'false' &&
     Boolean(settings?.google_wallet_enabled);
 
-  const walletUrl = isWalletEnabled ? generateGoogleWalletSaveUrl(student as Student) : null;
-
   return (
     <div className="space-y-6 text-center">
       <div>
@@ -47,7 +44,6 @@ export default async function MyQrPage() {
 
       <BadgeCard
         student={student as Student}
-        walletSaveUrl={walletUrl}
         showWalletButton={isWalletEnabled}
       />
     </div>

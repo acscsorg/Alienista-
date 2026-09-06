@@ -5,6 +5,8 @@ import { Download, Loader2 } from 'lucide-react';
 import { buildBadgeData, buildBadgeFilename } from '@/lib/badges/badge';
 import type { BadgeStudent } from '@/lib/types/models';
 import { getStudentGoogleWalletUrlAction } from '@/lib/actions/google-wallet';
+import { BadgeArtwork } from '@/components/badges/badge-artwork';
+import type { BadgeArtworkAssets } from '@/lib/badges/artwork';
 
 function GoogleWalletEmblem() {
   return (
@@ -30,15 +32,21 @@ export function BadgeCard({
 }) {
   const badge = useMemo(() => buildBadgeData(student), [student]);
   const [badgeDataUrl, setBadgeDataUrl] = useState('');
+  const [artworkAssets, setArtworkAssets] = useState<BadgeArtworkAssets>({ qrDataUrl: null, avatarDataUrl: null });
   const [renderError, setRenderError] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    import('@/lib/badges/render-badge').then(({ renderBadgeToDataUrl }) => renderBadgeToDataUrl(badge))
-      .then((url) => {
-        if (active) setBadgeDataUrl(url);
+    import('@/lib/badges/render-badge')
+      .then(async ({ buildBadgeArtworkAssets, renderBadgeToDataUrl }) => {
+        const assets = await buildBadgeArtworkAssets(badge);
+        const url = await renderBadgeToDataUrl(badge, assets);
+        if (active) {
+          setArtworkAssets(assets);
+          setBadgeDataUrl(url);
+        }
       })
       .catch(() => {
         if (active) setRenderError(true);
@@ -64,6 +72,7 @@ export function BadgeCard({
         if (res.success) {
           if (res.data?.url) {
             window.open(res.data.url, '_blank', 'noopener,noreferrer');
+            if (res.message) setErrorMessage(res.message);
           } else {
             setErrorMessage('Google Wallet pass URL was not returned.');
           }
@@ -80,15 +89,9 @@ export function BadgeCard({
 
   return (
     <div className="bg-white border border-[#E5EBE5] rounded-lg overflow-hidden shadow-md max-w-sm mx-auto">
-      <div className="aspect-[5/8] bg-[#F8FAF9] flex items-center justify-center">
-        {badgeDataUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={badgeDataUrl} alt={`${badge.full_name} membership badge`} className="w-full h-full object-contain" />
-        ) : (
-          <div className="text-xs text-slate-500 px-6 text-center">
-            {renderError ? 'Badge rendering failed. Reload and try again.' : 'Generating badge...'}
-          </div>
-        )}
+      <div className="relative aspect-[5/8] bg-[#F8FAF9] flex items-center justify-center">
+        <BadgeArtwork badge={badge} assets={artworkAssets} />
+        {renderError && <div className="absolute inset-0 flex items-center justify-center bg-white/85 px-6 text-center text-xs text-red-700">Badge rendering failed. Reload and try again.</div>}
       </div>
 
       {(showDownload || shouldShowWallet) && (

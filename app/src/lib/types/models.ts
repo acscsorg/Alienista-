@@ -1,4 +1,5 @@
 export type UserRole = 'admin' | 'officer' | 'student';
+export type GoogleWalletDesign = 'builder' | 'legacy';
 export type MemberStatus = 'Active' | 'Inactive';
 export type EventStatus = 'Open' | 'Closed';
 export type SlotType = 'am_in' | 'am_out' | 'pm_in' | 'pm_out' | 'other';
@@ -208,6 +209,7 @@ export interface OrganizationSettings {
   admin_username?: string;
   sanctions_enabled?: boolean;
   google_wallet_enabled?: boolean;
+  google_wallet_design?: GoogleWalletDesign;
   updated_at: string;
 }
 

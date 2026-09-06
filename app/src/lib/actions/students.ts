@@ -10,8 +10,15 @@ import { revalidatePath } from 'next/cache';
 import { allocateStudentUid } from '@/lib/students/uid';
 import { withServerTiming } from '@/lib/server-timing';
 import { normalizePageRequest, pageRange } from '@/lib/pagination';
+import { syncGoogleWalletObject } from '@/lib/badges/google-wallet';
+import type { GoogleWalletDesign } from '@/lib/types/models';
 
 const STUDENT_PROJECTION = 'id, organization_id, uid, student_number, first_name, last_name, full_name, course, year, section, status, is_first_login, avatar_url, created_at, updated_at';
+
+async function getWalletDesign(admin: ReturnType<typeof createAdminClient>, orgId: string): Promise<GoogleWalletDesign> {
+  const { data } = await admin.from('organization_settings').select('google_wallet_design').eq('organization_id', orgId).maybeSingle();
+  return data?.google_wallet_design === 'legacy' ? 'legacy' : 'builder';
+}
 
 const SCANNER_PROJECTION = 'id, organization_id, uid, student_number, full_name, status, avatar_url';
 const BADGE_PROJECTION = 'id, uid, student_number, full_name, course, year, section, status, avatar_url';
@@ -81,6 +88,8 @@ export async function getBadgeStudentsAction(
     const search = `%${request.query}%`;
     query = query.or(`full_name.ilike.${search},uid.ilike.${search},student_number.ilike.${search}`);
   }
+  if (request.year) query = query.eq('year', request.year);
+  if (request.status) query = query.eq('status', request.status);
   const { data, error, count } = await query.range(from, to);
   if (error) return { success: false, error: error.message };
   return {
@@ -171,14 +180,19 @@ export async function updateStudentAction(id: string, rawInput: unknown): Promis
     status: parsed.data.status,
   };
 
-  const { error } = await admin
+  const { data: updatedStudent, error } = await admin
     .from('students')
     .update(updatePayload)
     .eq('id', id)
-    .eq('organization_id', orgId);
+    .eq('organization_id', orgId)
+    .select(STUDENT_PROJECTION)
+    .single();
 
   if (error) return { success: false, error: error.message };
+  const walletSync = await syncGoogleWalletObject(updatedStudent as Student, await getWalletDesign(admin, orgId));
+  if (walletSync.status === 'failed') console.warn('Google Wallet profile sync failed:', walletSync.error);
   revalidatePath('/students');
+  revalidatePath('/my-qr');
   return { success: true, data: undefined };
 }
 
@@ -246,7 +260,7 @@ export async function replaceStudentAvatarAction(
       .update({ avatar_url: publicUrl })
       .eq('id', studentId)
       .eq('organization_id', orgId)
-      .select('id')
+      .select(STUDENT_PROJECTION)
       .maybeSingle();
     if (updateError || !updated) {
       await admin.storage.from('student-avatars').remove([filePath]);
@@ -258,8 +272,11 @@ export async function replaceStudentAvatarAction(
       await admin.storage.from('student-avatars').remove([previousPath]);
     }
 
+    const walletSync = await syncGoogleWalletObject(updated as Student, await getWalletDesign(admin, orgId));
+    if (walletSync.status === 'failed') console.warn('Google Wallet avatar sync failed:', walletSync.error);
     revalidatePath('/students');
     revalidatePath('/qr-generator');
+    revalidatePath('/my-qr');
     return { success: true, data: { publicUrl } };
   } catch (err: unknown) {
     return { success: false, error: err instanceof Error ? err.message : 'Failed to upload student photo.' };
@@ -275,13 +292,18 @@ export async function removeStudentAvatarAction(studentId: string): Promise<Acti
     .eq('id', studentId).eq('organization_id', orgId).maybeSingle();
   if (readError) return { success: false, error: readError.message };
   if (!student) return { success: false, error: 'Student not found in this organization.' };
-  const { error } = await admin.from('students').update({ avatar_url: null })
-    .eq('id', studentId).eq('organization_id', orgId);
+  const { data: updated, error } = await admin.from('students').update({ avatar_url: null })
+    .eq('id', studentId).eq('organization_id', orgId)
+    .select(STUDENT_PROJECTION)
+    .maybeSingle();
   if (error) return { success: false, error: error.message };
   const previousPath = avatarStoragePath(student.avatar_url);
   if (previousPath) await admin.storage.from('student-avatars').remove([previousPath]);
+  const walletSync = await syncGoogleWalletObject(updated as Student, await getWalletDesign(admin, orgId));
+  if (walletSync.status === 'failed') console.warn('Google Wallet avatar removal sync failed:', walletSync.error);
   revalidatePath('/students');
   revalidatePath('/qr-generator');
+  revalidatePath('/my-qr');
   return { success: true, data: undefined };
 }
 

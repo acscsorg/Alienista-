@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400" viewBox="0 0 1200 400" role="img" aria-labelledby="title desc">
+  <title id="title">Alienista student membership</title>
+  <desc id="desc">A dark green Alienista banner with a circuit pattern and alien mark.</desc>
+  <rect width="1200" height="400" fill="#10231b"/>
+  <path d="M0 305H1200M0 96H1200M210 0V400M980 0V400" stroke="#1b4332" stroke-width="2" opacity=".8"/>
+  <g fill="none" stroke="#2d6a4f" stroke-width="2" opacity=".75">
+    <path d="M0 44h105l28 28h80"/><path d="M1200 44h-110l-24 24h-100"/>
+    <path d="M0 350h78l28-28h84"/><path d="M1200 350h-94l-25-25h-90"/>
+    <path d="M286 0v44l30 30v62"/><path d="M914 0v44l-30 30v62"/>
+    <path d="M286 400v-45l30-30v-62"/><path d="M914 400v-45l-30-30v-62"/>
+  </g>
+  <g fill="#52b788">
+    <circle cx="105" cy="44" r="5"/><circle cx="215" cy="72" r="5"/><circle cx="1095" cy="44" r="5"/><circle cx="985" cy="68" r="5"/>
+    <circle cx="78" cy="350" r="5"/><circle cx="190" cy="322" r="5"/><circle cx="1120" cy="350" r="5"/><circle cx="1010" cy="325" r="5"/>
+  </g>
+  <g transform="translate(600 198)" fill="none" stroke="#d8f3dc" stroke-width="12" stroke-linejoin="round">
+    <path d="M-84-45c14-55 154-55 168 0l-14 104c-7 44-48 72-70 72s-63-28-70-72z"/>
+    <path d="M-49 5l30 13M49 5L19 18" stroke-linecap="round"/>
+  </g>
+  <text x="600" y="350" fill="#d8f3dc" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700" letter-spacing="8" text-anchor="middle">ALIENISTA</text>
+</svg>
