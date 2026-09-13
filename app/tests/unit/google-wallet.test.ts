@@ -48,13 +48,21 @@ describe('Google Wallet Pass Generation', () => {
       alternateText: '2024-0042',
     });
     expect(genericObject.cardTitle.defaultValue.value).toBe('Alienista');
+    expect(genericObject.hexBackgroundColor).toBe('#2d6a4f');
     expect(genericObject.logo?.sourceUri.uri).toBe(
       'https://example.com/avatar.png?v=2026-01-01T00%3A00%3A00Z'
     );
+    expect(genericObject.logo?.contentDescription.defaultValue.value).toBe('LOGO_IMAGE_DESCRIPTION');
     expect(genericObject.imageModulesData).toEqual([]);
     expect(genericObject.heroImage).toBeUndefined();
     expect(genericObject.subheader.defaultValue.value).toBe('Student Member');
     expect(genericObject.header.defaultValue.value).toBe('Nestor Jann Asag');
+    expect(genericObject.textModulesData).toEqual([
+      { id: 'program', header: 'Program', body: 'BSIT' },
+      { id: 'year_level', header: 'YEAR LEVEL', body: '3rd Year' },
+      { id: 'section', header: 'SECTION', body: 'BLOCK A' },
+      { id: 'student_no.', header: 'STUDENT NO.', body: '2024-00042' },
+    ]);
   });
 
   it('builds the same deterministic object used by the Wallet patch endpoint', () => {

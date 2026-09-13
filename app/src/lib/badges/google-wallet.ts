@@ -64,11 +64,10 @@ function getWalletHeroUrl(): string | null {
 }
 
 export function createGoogleWalletObject(student: Student, config: GoogleWalletConfig, design: GoogleWalletDesign = 'builder') {
-  const sectionLabel = student.section
-    ? student.section.startsWith('Block')
-      ? student.section
-      : `Block ${student.section}`
-    : 'Block 1';
+  const rawSection = student.section || '1';
+  const sectionLabel = rawSection.toUpperCase().startsWith('BLOCK')
+    ? rawSection.toUpperCase()
+    : `BLOCK ${rawSection.toUpperCase()}`;
 
   const fullClassId = config.classId.includes('.')
     ? config.classId
@@ -79,23 +78,27 @@ export function createGoogleWalletObject(student: Student, config: GoogleWalletC
   const logoUrl = getWalletLogoUrl(student);
   const heroUrl = getWalletHeroUrl();
 
+  const cardTitle = process.env.GOOGLE_WALLET_CARD_TITLE?.trim() || 'Alienista';
+  const subheader = process.env.GOOGLE_WALLET_SUBHEADER?.trim() || 'Student Member';
+  const hexBackgroundColor = process.env.GOOGLE_WALLET_HEX_BACKGROUND_COLOR?.trim() || (design === 'legacy' ? '#1b4332' : '#2d6a4f');
+
   const object = {
     id: fullObjectId,
     classId: fullClassId,
-    cardTitle: { defaultValue: { language: 'en-US', value: 'Alienista' } },
+    cardTitle: { defaultValue: { language: 'en-US', value: cardTitle } },
     header: { defaultValue: { language: 'en-US', value: student.full_name } },
-    subheader: { defaultValue: { language: 'en-US', value: 'Student Member' } },
-    hexBackgroundColor: '#2D6A4F',
+    subheader: { defaultValue: { language: 'en-US', value: subheader } },
+    hexBackgroundColor,
     heroImage: heroUrl
       ? {
           sourceUri: { uri: heroUrl },
-          contentDescription: { defaultValue: { language: 'en-US', value: 'Alienista student membership banner' } },
+          contentDescription: { defaultValue: { language: 'en-US', value: 'HERO_IMAGE_DESCRIPTION' } },
         }
       : undefined,
     logo: logoUrl
       ? {
           sourceUri: { uri: logoUrl },
-          contentDescription: { defaultValue: { language: 'en-US', value: `${student.full_name} profile photo` } },
+          contentDescription: { defaultValue: { language: 'en-US', value: 'LOGO_IMAGE_DESCRIPTION' } },
         }
       : undefined,
     // PATCH semantics preserve omitted fields, so an empty array removes an old image module.
@@ -106,16 +109,22 @@ export function createGoogleWalletObject(student: Student, config: GoogleWalletC
       alternateText: student.uid,
     },
     textModulesData: [
-      { id: 'program', header: 'PROGRAM', body: `${student.course} - ${student.year}` },
-      { id: 'student_number', header: 'STUDENT NO.', body: student.student_number },
+      { id: 'program', header: 'Program', body: student.course },
+      { id: 'year_level', header: 'YEAR LEVEL', body: student.year },
       { id: 'section', header: 'SECTION', body: sectionLabel },
-      { id: 'status', header: 'STATUS', body: student.status },
+      { id: 'student_no.', header: 'STUDENT NO.', body: student.student_number },
     ],
   };
 
   if (design === 'legacy') {
     object.subheader = { defaultValue: { language: 'en-US', value: `${student.course} - ${student.year}` } };
-    object.hexBackgroundColor = '#1B4332';
+    object.hexBackgroundColor = '#1b4332';
+    object.textModulesData = [
+      { id: 'program', header: 'PROGRAM', body: `${student.course} - ${student.year}` },
+      { id: 'student_number', header: 'STUDENT NO.', body: student.student_number },
+      { id: 'section', header: 'SECTION', body: student.section ? (student.section.startsWith('Block') ? student.section : `Block ${student.section}`) : 'Block 1' },
+      { id: 'status', header: 'STATUS', body: student.status },
+    ];
   }
   return object;
 }
